@@ -3,13 +3,19 @@ import {MongoClient} from 'mongodb'
 import {StreamStalker} from './streamstalker'
 
 export class StreamMonitor extends EventEmitter {
-	private mongo: MongoClient;
-	private streamStalker: StreamStalker;
+	private mongo: MongoClient
+	private streamStalker: StreamStalker
+	private options: {
+		stateChangeTimeRequirement: number
+	} = {
+		stateChangeTimeRequirement: 300000 // 5 mins
+	}
 
 	constructor(mongoClient: MongoClient, streamStalker: StreamStalker, options) {
-		super();
+		super()
 		this.mongo = mongoClient
 		this.streamStalker = streamStalker
+		this.options = {...this.options, ...options}
 	}
 
 	public pollMonitors = async () => {
@@ -19,9 +25,10 @@ export class StreamMonitor extends EventEmitter {
 		await this.mongo.db("vtube").collection("streams").find({}).forEach((doc) => {
 			let passparams = {
 				sequenceTime: sequenceTime,
+				channelUrl: doc.channelurl,
 				streamName: doc.name,
 				streamType: doc.type,
-				streamUrl: doc.channelurl,
+				streamUrl: doc.streamurl,
 				publicStream: doc.public,
 				notificationID: doc.notifications,
 				lastLiveState: doc.lastLiveState,
@@ -66,24 +73,31 @@ export class StreamMonitor extends EventEmitter {
 
 	private async updateStreamState(pass, live) {
 		const stream = await this.mongo.db("vtube").collection("streams").findOne({name: pass.streamName})
-
 		console.log(live, stream.lastLiveState, pass.streamName)
 
-		if (live && !stream.lastLiveState) {
-			this.emit('live', pass)
-			console.log("live")
-		}
-		if (!live && stream.lastLiveState) {
-			this.emit('offline', pass)
-			console.log("offline")
-		}
+		const currentTime = new Date().getTime()
+		let liveRising: boolean = false, offlineRising: boolean = false
 
-		await this.mongo.db("vtube").collection("streams").updateMany({
-			name: pass.streamName
-		}, {
-			"$set": {lastLiveState: live}
-		}, {})
+		if (live && !stream.lastLiveState)
+			liveRising = true
+		if (!live && stream.lastLiveState)
+			offlineRising = true
 
+		if ((liveRising || offlineRising) && currentTime - stream.lastStateChangeTime >= this.options.stateChangeTimeRequirement) {
+			if (liveRising) this.emit('live', pass)
+			if (offlineRising) this.emit('offline', pass)
+			await this.mongo.db("vtube").collection("streams").updateMany({
+				name: pass.streamName
+			}, [
+				{"$set": {lastLiveState: live}},
+				{"$set": {lastStateChangeTime: currentTime}}
+			], {})
+		} else {
+			if (liveRising) this.emit('warn', `Detected stream ${pass.streamName} state changed to live but was blocked \
+			(changed under ${this.options.stateChangeTimeRequirement} ms). Not writing new state!`)
+			if (offlineRising) this.emit('warn', `Detected stream ${pass.streamName} state changed to offline but was blocked \
+			(changed under ${this.options.stateChangeTimeRequirement} ms). Not writing new state!`)
+		}
 	}
 }
 

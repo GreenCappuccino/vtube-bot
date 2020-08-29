@@ -45,10 +45,13 @@ client.setProvider(new KeyvProvider(commandoSettings))
 
 const monitor = new StreamMonitor(mongo, streamStalker, {})
 monitor.on('live', (info) => {
-	logs.event.send(info.streamName + "livenow")
+	logs.event.send(`\`${info.streamName}\` is now **live**.`)
 })
 monitor.on('offline', (info) => {
-	logs.event.send(info.streamName + "offlinenow")
+	logs.event.send(`\`${info.streamName}\` is now **offline**.`)
+})
+monitor.on('warn', (message) => {
+	logs.monitor.send(`<@&${config.devRole}> **Monitor Warningr** (\`${message}\`)`)
 })
 monitor.on('error',(err) => {
 	logs.monitor.send(`<@&${config.devRole}> **Monitor Error** (\`${err}\`)`)
