@@ -43,31 +43,57 @@ const mongo = new MongoClient(databaseUrl, {
 
 client.setProvider(new KeyvProvider(commandoSettings))
 
-const monitor = new StreamMonitor(mongo, streamStalker, {})
+const monitor = new StreamMonitor(mongo, streamStalker, {
+	databaseName: config.mongoDBName
+})
 monitor.on('live', (info) => {
 	logs.event.send(`\`${info.streamName}\` is now **live**.`)
+	stats.liveRisingCount++
 })
 monitor.on('offline', (info) => {
 	logs.event.send(`\`${info.streamName}\` is now **offline**.`)
+	stats.offlineRisingCount++
 })
 monitor.on('warn', (message) => {
 	logs.monitor.send(`<@&${config.devRole}> **Monitor Warningr** (\`${message}\`)`)
+	stats.monitorWarns++
 })
-monitor.on('error',(err) => {
+monitor.on('error', (err) => {
 	logs.monitor.send(`<@&${config.devRole}> **Monitor Error** (\`${err}\`)`)
+	stats.monitorErrors++
 })
 
 
-let logs: {
+const logs: {
 	general: TextChannel,
 	monitor: TextChannel,
 	store: TextChannel,
-	event: TextChannel
+	event: TextChannel,
+	stats: TextChannel
 } = {
 	general: null,
 	monitor: null,
 	store: null,
-	event: null
+	event: null,
+	stats: null
+}
+
+let stats: {
+	startupTime: number,
+	liveRisingCount: number,
+	offlineRisingCount: number,
+	monitorPolls: number,
+	monitorWarns: number,
+	monitorErrors: number,
+	dbErrors: number,
+} = {
+	startupTime: new Date().getTime(),
+	liveRisingCount: 0,
+	offlineRisingCount: 0,
+	monitorPolls: 0,
+	monitorWarns: 0,
+	monitorErrors: 0,
+	dbErrors: 0
 }
 
 client.on('ready', () => {
@@ -79,15 +105,39 @@ client.on('ready', () => {
 	logs.store = client.channels.cache.get(config.logChannels.store)
 	// @ts-ignore
 	logs.event = client.channels.cache.get(config.logChannels.event)
+	// @ts-ignore
+	logs.stats = client.channels.cache.get(config.logChannels.stats)
 	console.log(`Logged in as ${client.user.tag}!`)
 	logs.general.send(`Logged in as <@${client.user.id}> at \`${new Date().getTime()}\`.`)
 	startup()
 })
 
+let reportStats = () => {
+	let uptime = new Date().getTime() - stats.startupTime
+	logs.stats.send(`**Statistics** (Past 30 mins) \`${uptime}\` of uptime
+	Monitors went live \`${stats.liveRisingCount}\` times. 
+	Monitors went offline \`${stats.offlineRisingCount}\` times.
+	\`${stats.monitorWarns}\` monitor warnings, \`${stats.monitorErrors}\` monitor errors, with \`${stats.monitorPolls}\` polls`)
+	stats = {
+		...stats, ...{
+			liveRisingCount: 0,
+			offlineRisingCount: 0,
+			monitorPolls: 0,
+			monitorWarns: 0,
+			monitorErrors: 0,
+			dbErrors: 0
+		}
+	}
+}
+
 let startup = () => {
 	setInterval(() => {
 		monitor.pollMonitors()
+		stats.monitorPolls++
 	}, 60000) // 1 min
+	setInterval(() => {
+		reportStats()
+	}, 1800000) // 30 mins
 	mongo.connect(async err => {
 		if (err) {
 			logs.store.send(`<@&${config.devRole}> **DB Error** (\`streams\`)
@@ -95,7 +145,7 @@ let startup = () => {
 			shutdown()
 			return
 		}
-		await mongo.db("vtube").collection("streams").find({}).forEach((doc) => {
+		await mongo.db(config.mongoDBName).collection("streams").find({}).forEach((doc) => {
 			if (doc.publicList) publicStreamNames.push(doc.name)
 		}, (err, res) => {
 			if (err) {
@@ -124,9 +174,5 @@ process.on('SIGTERM', () => {
 	shutdown()
 })
 
-if (process.env.VTUBE_PRODUCTION === "prod") {
-	client.login(config.botToken)
-} else {
-	client.login(config.testToken)
-}
+client.login(config.botToken)
 

@@ -6,8 +6,10 @@ export class StreamMonitor extends EventEmitter {
 	private mongo: MongoClient
 	private streamStalker: StreamStalker
 	private options: {
+		databaseName: string
 		stateChangeTimeRequirement: number
 	} = {
+		databaseName: "vtube",
 		stateChangeTimeRequirement: 300000 // 5 mins
 	}
 
@@ -22,7 +24,7 @@ export class StreamMonitor extends EventEmitter {
 
 		let sequenceTime = new Date().getTime()
 		console.log("------MONITOR POLL------")
-		await this.mongo.db("vtube").collection("streams").find({}).forEach((doc) => {
+		await this.mongo.db(this.options.databaseName).collection("streams").find({}).forEach((doc) => {
 			let passparams = {
 				sequenceTime: sequenceTime,
 				channelUrl: doc.channelurl,
@@ -72,7 +74,11 @@ export class StreamMonitor extends EventEmitter {
 	}
 
 	private async updateStreamState(pass, live) {
-		const stream = await this.mongo.db("vtube").collection("streams").findOne({name: pass.streamName})
+		if (live === null) {
+			this.emit('warn', `${pass.streamName} state was a null value. Not writing new state!`)
+			return
+		}
+		const stream = await this.mongo.db(this.options.databaseName).collection("streams").findOne({name: pass.streamName})
 		console.log(live, stream.lastLiveState, pass.streamName)
 
 		const currentTime = new Date().getTime()
@@ -86,7 +92,7 @@ export class StreamMonitor extends EventEmitter {
 		if ((liveRising || offlineRising) && currentTime - stream.lastStateChangeTime >= this.options.stateChangeTimeRequirement) {
 			if (liveRising) this.emit('live', pass)
 			if (offlineRising) this.emit('offline', pass)
-			await this.mongo.db("vtube").collection("streams").updateMany({
+			await this.mongo.db(this.options.databaseName).collection("streams").updateMany({
 				name: pass.streamName
 			}, [
 				{"$set": {lastLiveState: live}},
