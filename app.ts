@@ -55,7 +55,7 @@ monitor.on('offline', (info) => {
 	stats.offlineRisingCount++
 })
 monitor.on('warn', (message) => {
-	logs.monitor.send(`<@&${config.devRole}> **Monitor Warningr** (\`${message}\`)`)
+	logs.monitor.send(`<@&${config.devRole}> **Monitor Warning** (\`${message}\`)`)
 	stats.monitorWarns++
 })
 monitor.on('error', (err) => {
