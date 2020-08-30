@@ -5,7 +5,7 @@ import {StreamStalker} from './libs/streamstalker'
 import {StreamMonitor} from "./libs/streammonitor"
 import Keyv = require('keyv')
 import KeyvProvider = require('commando-provider-keyv')
-import config = require('./config.json')
+const config: any = require('./config.json')
 
 let publicStreamNames: string[] = []
 
