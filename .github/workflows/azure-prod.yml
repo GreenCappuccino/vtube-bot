@@ -35,7 +35,7 @@ jobs:
       run: |
         # Build and test the project, then
         # deploy to Azure Web App.
-        echo env.PROD_CONFIG > config.json
+        echo ${{ env.PROD_CONFIG }} > config.json
         npm install
         npm run build --if-present
         npm run test --if-present
