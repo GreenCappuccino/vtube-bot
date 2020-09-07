@@ -6,8 +6,8 @@ import {StreamMonitor} from './libs/streammonitor'
 import {Notifier} from './libs/notifier'
 import Keyv = require('keyv')
 import KeyvProvider = require('commando-provider-keyv')
+const config: any = require('./config.json')
 import * as path from 'path'
-import * as config from './config.json'
 import {ListStores} from "./libs/lists";
 
 const streamStalker = new StreamStalker({
@@ -71,7 +71,7 @@ monitor.on('offline', (info) => {
 	stats.offlineRisingCount++
 })
 monitor.on('warn', (message) => {
-	logs.warnerr.send(`<@&${config.devRole}> **Monitor Warningr** (\`${message}\`)`)
+	logs.monitor.send(`<@&${config.devRole}> **Monitor Warning** (\`${message}\`)`)
 	stats.monitorWarns++
 })
 monitor.on('error', (err) => {
