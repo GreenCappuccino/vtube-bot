@@ -11,7 +11,7 @@ export class StreamStalker {
 		this.twitchClientID = options.twitchClientID
 		this.twitchClientSecret = options.twitchClientSecret
 	}
-	private ytParseLive = data => {
+	private static ytParseLive(data) {
 		let liveNow = null
 		if (data.includes('window["ytInitialData"]')) {
 			liveNow = !!(data.includes('"label":"LIVE NOW"') &&
@@ -35,7 +35,7 @@ export class StreamStalker {
 			})
 
 			res.on('end', () => {
-				callback(opt.pass, false, this.ytParseLive(data))
+				callback(opt.pass, false, StreamStalker.ytParseLive(data))
 			})
 		})
 

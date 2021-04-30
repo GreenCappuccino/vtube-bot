@@ -20,7 +20,7 @@ export class StreamMonitor extends EventEmitter {
 		this.options = {...this.options, ...options}
 	}
 
-	public pollMonitors = async () => {
+	public async pollMonitors() {
 
 		let sequenceTime = new Date().getTime()
 		console.log("------MONITOR POLL------")
