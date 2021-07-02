@@ -20,7 +20,7 @@
   "homepage": "https://github.com/GreenCappuccino/VTube#readme",
   "dependencies": {
     "@keyv/mongo": "^1.1.0",
-    "@types/node": "^15.12.4",
+    "@types/node": "^15.14.0",
     "commando-provider-keyv": "^2.1.0",
     "discord.js": "^12.5.3",
     "discord.js-commando": "github:discordjs/Commando",
